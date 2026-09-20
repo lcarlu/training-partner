@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: >
+      Raw Garmin Connect payloads loaded by dlt (backend/../data/dlt/garmin_pipeline.py),
+      one dlt resource per table. Column names come from dlt's snake_case normalization of
+      the Garmin API's camelCase JSON (nested objects are flattened with `__`).
+    tables:
+      - name: activities
+      - name: daily_stats
+      - name: sleep
+      - name: hrv
+      - name: stress
+      - name: training_readiness
+      - name: training_status
+      - name: max_metrics
+      - name: body_battery
+      - name: body_composition
+      - name: race_predictions

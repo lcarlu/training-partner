@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: fct_activities
+    columns:
+      - name: activity_id
+        tests: [not_null, unique]
+  - name: fct_daily_wellness
+    columns:
+      - name: day
+        tests: [not_null, unique]
