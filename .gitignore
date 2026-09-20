@@ -1,0 +1,39 @@
+# --- Python / backend ---
+__pycache__/
+*.py[oc]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+
+# --- Node / frontend ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+
+# --- Data warehouse (dlt/dbt/DuckDB) ---
+data/warehouse.duckdb
+data/warehouse.duckdb.wal
+*.duckdb
+*.duckdb.wal
+data/dbt/target/
+data/dbt/logs/
+data/dbt/dbt_packages/
+
+# --- Secrets / local state ---
+.env
+.env.*
+!.env.example
+backend/.garmin_tokens/
+.garmin_tokens/
+
+# --- Editor / OS ---
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.sw?
