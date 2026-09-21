@@ -1,0 +1,16 @@
+name: "training_partner"
+version: "1.0.0"
+config-version: 2
+profile: "training_partner"
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+
+models:
+  training_partner:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts

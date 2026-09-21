@@ -5,22 +5,26 @@ Dashboard local d'entraînement multi-sport, basé sur tes données Garmin Conne
 ## Architecture
 
 - **Backend** (`backend/`) : FastAPI, architecture Controller (`app/api/routes`) / Service (`app/services`) / Repository (`app/infrastructure/db`, `app/infrastructure/warehouse`) / Database. Logique métier pure (calcul de phase, recommandations) isolée dans `app/domain/`. SQLModel + Alembic pour les tables propres à l'appli (journal, plan). Tooling : [uv](https://docs.astral.sh/uv/), [ruff](https://docs.astral.sh/ruff/), [ty](https://github.com/astral-sh/ty).
-- **Pipeline data** (`data/`) : extraction Garmin incrémentale via [dlt](https://dlthub.com/) (`data/dlt/garmin_pipeline.py`) vers un schéma `raw`, transformation via [dbt](https://www.getdbt.com/) (`data/dbt/`) en `staging`/`marts`, le tout dans un seul fichier [DuckDB](https://duckdb.org/) : `data/warehouse.duckdb`.
+- **Pipeline data** (`data/`) : extraction Garmin incrémentale via [dlt](https://dlthub.com/) (`data/dlt/garmin_pipeline.py`) vers un schéma `raw`, transformation via [dbt](https://www.getdbt.com/) (`data/dbt/`, adapter `dbt-postgres`) en `staging`/`marts`. Stockage : [Postgres](https://www.postgresql.org/) via Docker Compose (une seule base, plusieurs schémas : `app`/`raw`/`staging`/`marts`).
 - **Frontend** (`frontend/`) : React + Vite + TypeScript + Recharts. La page Dashboard déclenche un refresh (`POST /api/sync/refresh` → dlt puis dbt) à chaque ouverture.
 
 ## Setup (première fois)
 
-1. **Backend** :
+1. **Postgres** (Docker) :
+   ```bash
+   docker compose up -d
+   ```
+2. **Backend** :
    ```bash
    cd backend
    uv sync
    cp .env.example .env   # puis renseigne GARMIN_EMAIL / GARMIN_PASSWORD
    ```
-2. **Login Garmin** (une seule fois, gère un éventuel MFA) :
+3. **Login Garmin** (une seule fois, gère un éventuel MFA) :
    ```bash
    uv run --directory backend python scripts/garmin_login.py
    ```
-3. **Frontend** :
+4. **Frontend** :
    ```bash
    cd frontend
    npm install
@@ -28,7 +32,7 @@ Dashboard local d'entraînement multi-sport, basé sur tes données Garmin Conne
 
 ## Lancer en dev
 
-Terminal 1 — backend (applique les migrations, démarre l'API, ouvre le navigateur) :
+Terminal 1 — backend (applique les migrations, démarre l'API, ouvre le navigateur ; nécessite `docker compose up -d`) :
 ```bash
 python dashboard.py
 ```
