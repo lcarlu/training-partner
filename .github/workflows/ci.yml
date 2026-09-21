@@ -9,6 +9,27 @@ jobs:
   backend:
     name: Backend + data (uv, ruff, ty, pytest, dbt)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: athlete
+          POSTGRES_PASSWORD: athlete
+          POSTGRES_DB: athlete
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U athlete -d athlete"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://athlete:athlete@localhost:5432/athlete
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: athlete
+      POSTGRES_PASSWORD: athlete
+      POSTGRES_DB: athlete
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +58,7 @@ jobs:
         working-directory: backend
         run: uv run pytest
 
-      - name: dbt parse (static check, no live warehouse needed)
+      - name: dbt parse (static check, no live connection needed)
         working-directory: backend
         run: uv run dbt parse --project-dir ../data/dbt --profiles-dir ../data/dbt
 

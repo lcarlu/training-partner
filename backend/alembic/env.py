@@ -1,6 +1,5 @@
 from logging.config import fileConfig
 
-from alembic.ddl.impl import DefaultImpl
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
@@ -9,19 +8,12 @@ from app.core.config import get_settings
 from app.core.db import APP_SCHEMA
 from app.infrastructure.db import models  # noqa: F401  (registers tables on SQLModel.metadata)
 
-
-class DuckDBImpl(DefaultImpl):
-    """duckdb-engine doesn't ship an Alembic DDL impl; the Postgres-derived default works."""
-
-    __dialect__ = "duckdb"
-
-
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", f"duckdb:///{get_settings().duckdb_path}")
+config.set_main_option("sqlalchemy.url", get_settings().database_url)
 
 target_metadata = SQLModel.metadata
 
@@ -66,9 +58,8 @@ def run_migrations_online() -> None:
         with context.begin_transaction():
             context.run_migrations()
 
-        # duckdb-engine doesn't support switching isolation level to AUTOCOMMIT, and
-        # Alembic's "non-transactional DDL" assumption otherwise leaves this connection's
-        # implicit transaction uncommitted, silently rolled back on close.
+        # SQLAlchemy 2.x "commit as you go": closing the connection at the end of this `with`
+        # block rolls back anything not explicitly committed first.
         connection.commit()
 
 

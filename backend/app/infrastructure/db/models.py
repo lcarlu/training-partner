@@ -13,10 +13,9 @@ def _new_id() -> str:
 
 
 class JournalEntry(SQLModel, table=True):
-    """`id` is a client-generated UUID hex string rather than a DB-generated integer:
-    the Postgres-derived duckdb-engine dialect renders integer autoincrement PKs as
-    `SERIAL`, a type DuckDB doesn't implement, and Alembic autogenerate doesn't reliably
-    emit `CREATE SEQUENCE` for this dialect either. A client-side id sidesteps both."""
+    """`id` is a client-generated UUID hex string rather than a DB-generated integer - a
+    deliberate choice (not a Postgres limitation), avoids leaking a sequential row count/order
+    through the API."""
 
     __tablename__ = "journal_entry"
     __table_args__ = {"schema": APP_SCHEMA}
@@ -44,9 +43,8 @@ class TrainingPlan(SQLModel, table=True):
 class SyncLog(SQLModel, table=True):
     """Single always-overwritten row (`id="latest"`) recording the most recent sync run, so the
     dashboard can show `lastSyncAt`. `counts` is stored as a JSON *string* rather than a native
-    JSON column: duckdb-engine's dialect has already shown SQL-generation gaps against
-    Postgres-shaped SQLModel/Alembic output (see the id-column comment on `JournalEntry` above),
-    so a plain TEXT column sidesteps another possible one."""
+    JSONB column for simplicity (no querying into it needed) - could switch to `sa.JSON` later
+    if that changes."""
 
     __tablename__ = "sync_log"
     __table_args__ = {"schema": APP_SCHEMA}

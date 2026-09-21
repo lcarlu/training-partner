@@ -15,11 +15,7 @@ dist-ssr/
 *.local
 npm-debug.log*
 
-# --- Data warehouse (dlt/dbt/DuckDB) ---
-data/warehouse.duckdb
-data/warehouse.duckdb.wal
-*.duckdb
-*.duckdb.wal
+# --- Data warehouse (dbt) ---
 data/dbt/target/
 data/dbt/logs/
 data/dbt/dbt_packages/

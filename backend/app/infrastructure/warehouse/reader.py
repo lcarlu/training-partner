@@ -1,17 +1,13 @@
 from datetime import date, datetime
 
-import duckdb
-from sqlalchemy.pool import PoolProxiedConnection
+from sqlalchemy import text
+from sqlalchemy.exc import ProgrammingError
 
+from app.core.db import get_engine
 from app.domain.entities import Activity, Sport, WellnessDay
-from app.infrastructure.warehouse.connection import get_warehouse_connection
 
 
-def _table_missing(exc: Exception) -> bool:
-    return isinstance(exc, duckdb.CatalogException)
-
-
-def _row_to_activity(row: tuple) -> Activity:
+def _row_to_activity(row) -> Activity:
     (
         activity_id,
         sport,
@@ -51,7 +47,7 @@ def _row_to_activity(row: tuple) -> Activity:
     )
 
 
-def _row_to_wellness(row: tuple) -> WellnessDay:
+def _row_to_wellness(row) -> WellnessDay:
     return WellnessDay(
         day=row[0] if isinstance(row[0], date) else date.fromisoformat(str(row[0])),
         resting_hr=row[1],
@@ -71,11 +67,9 @@ def _row_to_wellness(row: tuple) -> WellnessDay:
 
 class WarehouseReader:
     """Read-only access to the dbt marts (`marts.fct_activities`, `marts.fct_daily_wellness`,
-    `marts.agg_weekly_volume_by_sport`). Returns empty results if a mart doesn't exist yet
-    (e.g. before the first sync has ever run)."""
-
-    def __init__(self, conn: PoolProxiedConnection | None = None):
-        self.conn = conn or get_warehouse_connection()
+    `marts.agg_weekly_volume_by_sport`) on Postgres. Returns empty results if a mart doesn't
+    exist yet (e.g. before the first sync has ever run) - Postgres raises `UndefinedTable`,
+    which SQLAlchemy wraps as `ProgrammingError`."""
 
     def list_activities(
         self,
@@ -90,21 +84,21 @@ class WarehouseReader:
             "training_effect_anaerobic "
             "from marts.fct_activities where 1=1"
         )
-        params: list = []
+        params: dict = {"limit": limit}
         if sport is not None:
-            query += " and sport = ?"
-            params.append(sport.value)
+            query += " and sport = :sport"
+            params["sport"] = sport.value
         if since is not None:
-            query += " and start_time >= ?"
-            params.append(since)
+            query += " and start_time >= :since"
+            params["since"] = since
         if until is not None:
-            query += " and start_time <= ?"
-            params.append(until)
-        query += " order by start_time desc limit ?"
-        params.append(limit)
+            query += " and start_time <= :until"
+            params["until"] = until
+        query += " order by start_time desc limit :limit"
         try:
-            rows = self.conn.execute(query, params).fetchall()
-        except duckdb.CatalogException:
+            with get_engine().connect() as conn:
+                rows = conn.execute(text(query), params).fetchall()
+        except ProgrammingError:
             return []
         return [_row_to_activity(r) for r in rows]
 
@@ -113,22 +107,24 @@ class WarehouseReader:
             "select activity_id, sport, name, start_time, duration_s, distance_m, avg_hr, "
             "max_hr, calories, elevation_gain_m, training_effect_aerobic, "
             "training_effect_anaerobic "
-            "from marts.fct_activities where activity_id = ?"
+            "from marts.fct_activities where activity_id = :activity_id"
         )
         try:
-            row = self.conn.execute(query, [activity_id]).fetchone()
-        except duckdb.CatalogException:
+            with get_engine().connect() as conn:
+                row = conn.execute(text(query), {"activity_id": activity_id}).fetchone()
+        except ProgrammingError:
             return None
         return _row_to_activity(row) if row else None
 
     def weekly_volume_by_sport(self, weeks: int = 12) -> list[dict]:
         query = (
             "select week_start, sport, total_distance_km, total_duration_h, activity_count "
-            "from marts.agg_weekly_volume_by_sport order by week_start desc limit ?"
+            "from marts.agg_weekly_volume_by_sport order by week_start desc limit :limit"
         )
         try:
-            rows = self.conn.execute(query, [weeks * 5]).fetchall()
-        except duckdb.CatalogException:
+            with get_engine().connect() as conn:
+                rows = conn.execute(text(query), {"limit": weeks * 5}).fetchall()
+        except ProgrammingError:
             return []
         return [
             {
@@ -146,11 +142,12 @@ class WarehouseReader:
             "select day, resting_hr, hrv_status, hrv_last_night_avg, body_battery_min, "
             "body_battery_max, stress_avg, sleep_score, sleep_duration_s, vo2max_running, "
             "vo2max_cycling, training_readiness_score, training_status "
-            "from marts.fct_daily_wellness where day >= ? and day <= ? order by day asc"
+            "from marts.fct_daily_wellness where day >= :since and day <= :until order by day asc"
         )
         try:
-            rows = self.conn.execute(query, [since, until]).fetchall()
-        except duckdb.CatalogException:
+            with get_engine().connect() as conn:
+                rows = conn.execute(text(query), {"since": since, "until": until}).fetchall()
+        except ProgrammingError:
             return []
         return [_row_to_wellness(r) for r in rows]
 
@@ -162,7 +159,8 @@ class WarehouseReader:
             "from marts.fct_daily_wellness order by day desc limit 1"
         )
         try:
-            row = self.conn.execute(query).fetchone()
-        except duckdb.CatalogException:
+            with get_engine().connect() as conn:
+                row = conn.execute(text(query)).fetchone()
+        except ProgrammingError:
             return None
         return _row_to_wellness(row) if row else None

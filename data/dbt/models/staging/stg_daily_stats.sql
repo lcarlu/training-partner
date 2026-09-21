@@ -1,6 +1,6 @@
 -- Best-guess column names, see stg_activities.sql for the caveat.
 
 select
-    day,
+    day::date as day,
     resting_heart_rate as resting_hr
 from {{ source('raw', 'daily_stats') }}

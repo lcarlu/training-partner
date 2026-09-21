@@ -1,8 +1,8 @@
--- Best-guess column names, see stg_activities.sql for the caveat. `get_body_battery` returns
--- one row per day with min/max charge fields; exact names to confirm against real data.
+-- `body_battery_min`/`body_battery_max` are precomputed in the dlt resource (from the raw
+-- `bodyBatteryValuesArray` samples) since there's no ready-made min/max field on this endpoint.
 
 select
-    calendar_date as day,
-    charged_value as body_battery_max,
-    drained_value as body_battery_min
+    date::date as day,
+    body_battery_min,
+    body_battery_max
 from {{ source('raw', 'body_battery') }}

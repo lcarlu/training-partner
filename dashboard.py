@@ -6,10 +6,12 @@ app-owned, puis démarre uvicorn) et ouvre le navigateur sur le dashboard.
 
 Usage : `python dashboard.py` (ou `uv run python dashboard.py` depuis la racine).
 Le frontend (Vite) doit être lancé séparément en dev : `cd frontend && npm run dev`.
+Postgres doit tourner : `docker compose up -d` depuis la racine du projet.
 """
 
 from __future__ import annotations
 
+import socket
 import subprocess
 import sys
 import webbrowser
@@ -20,6 +22,8 @@ ROOT = Path(__file__).resolve().parent
 BACKEND_DIR = ROOT / "backend"
 FRONTEND_URL = "http://localhost:5173"
 BACKEND_URL = "http://localhost:8000"
+POSTGRES_HOST = "localhost"
+POSTGRES_PORT = 5432
 
 
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess:
@@ -34,6 +38,18 @@ def check_env_file() -> None:
             f"[!] {env_path} est introuvable.\n"
             f"    Copie {BACKEND_DIR / '.env.example'} vers {env_path} et renseigne tes "
             "identifiants Garmin avant de continuer.\n"
+        )
+        sys.exit(1)
+
+
+def check_postgres_reachable() -> None:
+    try:
+        with socket.create_connection((POSTGRES_HOST, POSTGRES_PORT), timeout=2):
+            return
+    except OSError:
+        print(
+            f"[!] Postgres n'est pas joignable sur {POSTGRES_HOST}:{POSTGRES_PORT}.\n"
+            "    Lance `docker compose up -d` depuis la racine du projet avant de continuer.\n"
         )
         sys.exit(1)
 
@@ -58,6 +74,8 @@ def open_browser_later(delay_s: float = 1.5) -> None:
 def start_backend() -> None:
     print(f"Démarrage du backend FastAPI sur {BACKEND_URL} ...")
     open_browser_later()
+    # --reload est de nouveau safe : Postgres gère nativement les connexions concurrentes,
+    # contrairement à l'ancien fichier DuckDB partagé (un seul process à la fois).
     subprocess.run(
         [
             "uv",
@@ -77,6 +95,7 @@ def start_backend() -> None:
 
 def main() -> None:
     check_env_file()
+    check_postgres_reachable()
     apply_migrations()
     start_backend()
 

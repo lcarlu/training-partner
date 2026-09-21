@@ -12,7 +12,7 @@ APP_SCHEMA = "app"
 @lru_cache
 def get_engine() -> Engine:
     settings = get_settings()
-    engine = create_engine(f"duckdb:///{settings.duckdb_path}")
+    engine = create_engine(settings.database_url)
     with engine.begin() as conn:
         conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {APP_SCHEMA}"))
     return engine
